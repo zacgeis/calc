@@ -1,3 +1,6 @@
+mod lex;
+
+use lex::tokenize;
 use std::iter::Peekable;
 
 // this is a cool approach, but matching becomes more annoying.
@@ -67,6 +70,9 @@ fn parse_num(tokens: &mut Peekable<impl Iterator<Item = char>>) -> ParseResult {
         if is_num_char(&c) {
             tokens.next();
             buffer.push(c);
+        } else if c.is_whitespace() {
+            tokens.next();
+            continue;
         } else {
             break;
         }
@@ -89,7 +95,7 @@ fn main() {
     println!("eval: {:?}", eval(&node_3));
 
     // TODO: need to handle for spaces in the string.
-    let node_4 = parse("1234+1234").unwrap().unwrap();
+    let node_4 = parse("1234 + 1234").unwrap().unwrap();
     println!("parsed eval: {:?}", eval(&node_4));
 }
 
