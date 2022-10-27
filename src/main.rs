@@ -1,6 +1,6 @@
 mod lex;
 
-use lex::tokenize;
+use lex::{tokenize, Token};
 use std::iter::Peekable;
 
 // this is a cool approach, but matching becomes more annoying.
@@ -14,13 +14,9 @@ enum Node {
     Div(Box<Node>, Box<Node>),
     Mod(Box<Node>, Box<Node>),
     Pow(Box<Node>, Box<Node>),
-    Lit(i32),
+    Num(i32),
 }
-#[derive(Debug)]
-struct ParseError {
-    message: String,
-}
-type ParseResult = Result<Option<Box<Node>>, ParseError>;
+type ParseResult = Result<Option<Box<Node>>, String>;
 
 fn eval(node: &Node) -> i32 {
     match node {
@@ -30,23 +26,23 @@ fn eval(node: &Node) -> i32 {
         Node::Div(a, b) => eval(a) / eval(b),
         Node::Mod(a, b) => eval(a) % eval(b),
         Node::Pow(a, b) => i32::pow(eval(a), eval(b) as u32),
-        Node::Lit(a) => *a,
+        Node::Num(a) => *a,
     }
 }
 
-fn parse(s: &str) -> ParseResult {
-    let mut tokens = s.chars().peekable();
-    parse_exp(&mut tokens)
+fn parse(tokens: &[Token]) -> ParseResult {
+    let mut token_iter = tokens.iter().peekable();
+    parse_exp(&mut token_iter)
 }
 
 fn is_num_char(c: &char) -> bool {
     c.is_numeric() || *c == '-'
 }
 
-fn parse_exp(tokens: &mut Peekable<impl Iterator<Item = char>>) -> ParseResult {
-    let left = match parse_num(tokens) {
-        Ok(Some(left)) => left,
-        val => return val,
+fn parse_exp<'a>(tokens: &mut Peekable<impl Iterator<Item = &'a Token>>) -> ParseResult {
+    let left = match tokens.next() {
+        Some(Token::Num(a)) => Node::Num(*a),
+        _ => return Err("todo error.".to_string()),
     };
     let op_char = match tokens.next() {
         Some(op_char) => op_char,
@@ -58,31 +54,7 @@ fn parse_exp(tokens: &mut Peekable<impl Iterator<Item = char>>) -> ParseResult {
     };
     match op_char {
         '+' => Ok(Some(Box::new(Node::Add(left, right)))),
-        _ => Err(ParseError {
-            message: "Unknown operator.".to_string(),
-        }),
-    }
-}
-
-fn parse_num(tokens: &mut Peekable<impl Iterator<Item = char>>) -> ParseResult {
-    let mut buffer = String::new();
-    while let Some(&c) = tokens.peek() {
-        if is_num_char(&c) {
-            tokens.next();
-            buffer.push(c);
-        } else if c.is_whitespace() {
-            tokens.next();
-            continue;
-        } else {
-            break;
-        }
-    }
-    if buffer.is_empty() {
-        Err(ParseError {
-            message: "TODO error".to_string(),
-        })
-    } else {
-        Ok(Some(Box::new(Node::Lit(buffer.parse().unwrap()))))
+        _ => Err("Unknown operator.".to_string()),
     }
 }
 
@@ -98,6 +70,3 @@ fn main() {
     let node_4 = parse("1234 + 1234").unwrap().unwrap();
     println!("parsed eval: {:?}", eval(&node_4));
 }
-
-#[test]
-fn basic_test() {}

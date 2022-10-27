@@ -1,5 +1,6 @@
+#[derive(Debug, Eq, PartialEq)]
 pub enum Token {
-    Number(i32),
+    Num(i32),
     Plus,
     Minus,
     Asterisk,
@@ -10,8 +11,8 @@ pub enum Token {
 
 pub fn tokenize(s: &str) -> Result<Vec<Token>, String> {
     let mut tokens = vec![];
-    let mut chars = s.chars().peekable();
-    while let Some(c) = chars.next() {
+    let mut chars = s.char_indices().peekable();
+    while let Some((i, c)) = chars.next() {
         match c {
             ' ' => continue,
             '+' => tokens.push(Token::Plus),
@@ -21,19 +22,70 @@ pub fn tokenize(s: &str) -> Result<Vec<Token>, String> {
             '%' => tokens.push(Token::Percent),
             '^' => tokens.push(Token::Caret),
             '0'..='9' => {
-                let mut temp = String::new();
-                temp.push(c);
-                while let Some(k) = chars.peek() {
-                    // TODO: fix tihs.
-                    temp.push(k);
+                let mut end = s.len();
+                while let Some((k, c)) = chars.peek() {
+                    match c {
+                        '0'..='9' => {
+                            chars.next();
+                        }
+                        _ => {
+                            end = *k;
+                            break;
+                        }
+                    }
                 }
-                match temp.parse() {
-                    Ok(num) => tokens.push(Token::Number(num)),
+                match s[i..end].parse() {
+                    Ok(num) => tokens.push(Token::Num(num)),
                     _ => return Err("Invalid number literal.".to_string()),
                 }
             }
-            _ => return Err("Unexpected char found.".to_string()),
+            _ => return Err(format!("Unexpected char found: {}.", c)),
         }
     }
     Ok(tokens)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_tokenize() {
+        assert_eq!(tokenize("#"), Err("Unexpected char found: #.".to_string()));
+
+        assert_eq!(tokenize("1234"), Ok(vec![Token::Num(1234)]));
+
+        assert_eq!(
+            tokenize("-1234"),
+            Ok(vec![Token::Minus, Token::Num(1234)])
+        );
+
+        assert_eq!(
+            tokenize("- 1234"),
+            Ok(vec![Token::Minus, Token::Num(1234)])
+        );
+
+        assert_eq!(
+            tokenize("12 34"),
+            Ok(vec![Token::Num(12), Token::Num(34)])
+        );
+
+        assert_eq!(
+            tokenize("1 + 1"),
+            Ok(vec![Token::Num(1), Token::Plus, Token::Num(1)])
+        );
+
+        assert_eq!(
+            tokenize("12 + 34 - 56 * 78"),
+            Ok(vec![
+                Token::Num(12),
+                Token::Plus,
+                Token::Num(34),
+                Token::Minus,
+                Token::Num(56),
+                Token::Asterisk,
+                Token::Num(78),
+            ])
+        );
+    }
 }
