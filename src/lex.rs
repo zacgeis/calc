@@ -1,6 +1,8 @@
 #[derive(Debug, Eq, PartialEq)]
 pub enum Token {
     Num(i32),
+    OpenParen,
+    CloseParen,
     Plus,
     Minus,
     Asterisk,
@@ -15,6 +17,8 @@ pub fn tokenize(s: &str) -> Result<Vec<Token>, String> {
     while let Some((i, c)) = chars.next() {
         match c {
             ' ' => continue,
+            '(' => tokens.push(Token::OpenParen),
+            ')' => tokens.push(Token::CloseParen),
             '+' => tokens.push(Token::Plus),
             '-' => tokens.push(Token::Minus),
             '*' => tokens.push(Token::Asterisk),

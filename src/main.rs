@@ -18,6 +18,7 @@ enum Node {
     Num(i32),
 }
 type ParseResult = Result<Option<Box<Node>>, String>;
+type TokenIter<'a> = Peekable<std::slice::Iter<'a, Token>>;
 
 fn eval(node: &Node) -> i32 {
     match node {
@@ -37,38 +38,73 @@ fn parse(tokens: &[Token]) -> ParseResult {
     parse_exp(&mut token_iter)
 }
 
-fn is_num_char(c: &char) -> bool {
-    c.is_numeric() || *c == '-'
-}
-
-fn parse_exp<'a>(tokens: &mut Peekable<impl Iterator<Item = &'a Token>>) -> ParseResult {
-    let left = match tokens.next() {
-        Some(Token::Num(a)) => Node::Num(*a),
-        _ => return Err("todo error.".to_string()),
+fn parse_exp(tokens: &mut TokenIter) -> ParseResult {
+    // TODO: need to break parens out into their own step to allow unary to work properly -1234 + 1234 or -(1234) + 1234
+    let left = match tokens.peek() {
+        Some(Token::OpenParen) => {
+            tokens.next();
+            let exp = parse_exp(tokens)?;
+            match tokens.next() {
+                Some(Token::CloseParen) => (),
+                _ => return Err("Expected a closing paren.".to_string()),
+            }
+            exp
+        }
+        Some(_) => parse_unary(tokens)?,
+        None => None,
     };
-    let op_char = match tokens.next() {
-        Some(op_char) => op_char,
+    let left = match left {
+        Some(node) => node,
+        None => return Ok(None),
+    };
+    let op = match tokens.next() {
+        Some(token) => token,
         None => return Ok(Some(left)),
     };
-    let right = match parse_exp(tokens) {
-        Ok(Some(right)) => right,
-        val => return val,
+    let right = match parse_exp(tokens)? {
+        Some(node) => node,
+        None => return Err("Right side of expression missing.".to_string()),
     };
-    match op_char {
-        '+' => Ok(Some(Box::new(Node::Add(left, right)))),
-        _ => Err("Unknown operator.".to_string()),
+    let node = match op {
+        Token::Plus => Box::new(Node::Add(left, right)),
+        Token::Minus => Box::new(Node::Sub(left, right)),
+        _ => return Err(format!("Unexpected token: {:?}.", op)),
+    };
+    Ok(Some(node))
+}
+
+fn parse_unary(tokens: &mut TokenIter) -> ParseResult {
+    match tokens.peek() {
+        Some(Token::Minus) => {
+            tokens.next();
+            let right = match parse_exp(tokens)? {
+                Some(node) => node,
+                None => return Err("Expected expression.".to_string()),
+            };
+            Ok(Some(Box::new(Node::Neg(right))))
+        }
+        None => Ok(None),
+        _ => parse_number(tokens),
+    }
+}
+
+fn parse_number(tokens: &mut TokenIter) -> ParseResult {
+    match tokens.next() {
+        Some(Token::Num(a)) => Ok(Some(Box::new(Node::Num(*a)))),
+        _ => Err("todo error.".to_string()),
     }
 }
 
 fn main() {
-    let node_1 = Box::new(Node::Lit(1));
-    let node_2 = Box::new(Node::Lit(2));
+    let node_1 = Box::new(Node::Num(1));
+    let node_2 = Box::new(Node::Num(2));
     let node_3 = Box::new(Node::Add(node_1, node_2));
 
     println!("nodes: {:?}", &node_3);
     println!("eval: {:?}", eval(&node_3));
 
     // TODO: need to handle for spaces in the string.
-    let node_4 = parse("1234 + 1234").unwrap().unwrap();
+    let tokens = tokenize("-1234 + 1234").unwrap();
+    let node_4 = parse(&tokens).unwrap().unwrap();
     println!("parsed eval: {:?}", eval(&node_4));
 }
