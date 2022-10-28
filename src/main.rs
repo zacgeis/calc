@@ -14,6 +14,7 @@ enum Node {
     Div(Box<Node>, Box<Node>),
     Mod(Box<Node>, Box<Node>),
     Pow(Box<Node>, Box<Node>),
+    Neg(Box<Node>),
     Num(i32),
 }
 type ParseResult = Result<Option<Box<Node>>, String>;
@@ -26,6 +27,7 @@ fn eval(node: &Node) -> i32 {
         Node::Div(a, b) => eval(a) / eval(b),
         Node::Mod(a, b) => eval(a) % eval(b),
         Node::Pow(a, b) => i32::pow(eval(a), eval(b) as u32),
+        Node::Neg(a) => -eval(a),
         Node::Num(a) => *a,
     }
 }
