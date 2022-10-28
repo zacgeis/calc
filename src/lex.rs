@@ -1,6 +1,6 @@
 #[derive(Debug, Eq, PartialEq)]
 pub enum Token {
-    Num(i32),
+    Num(i64),
     OpenParen,
     CloseParen,
     Plus,

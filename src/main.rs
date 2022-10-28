@@ -6,7 +6,7 @@ use std::iter::Peekable;
 // this is a cool approach, but matching becomes more annoying.
 // struct NodeBoxed(Node<Box<NodeBoxed>>);
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 enum Node {
     Add(Box<Node>, Box<Node>),
     Sub(Box<Node>, Box<Node>),
@@ -15,45 +15,34 @@ enum Node {
     Mod(Box<Node>, Box<Node>),
     Pow(Box<Node>, Box<Node>),
     Neg(Box<Node>),
-    Num(i32),
+    Num(i64),
 }
+
 type ParseResult = Result<Option<Box<Node>>, String>;
 type TokenIter<'a> = Peekable<std::slice::Iter<'a, Token>>;
 
-fn eval(node: &Node) -> i32 {
+// TODO: Update eval to return a result and handle things like divide by zero?
+fn eval(node: &Node) -> i64 {
     match node {
         Node::Add(a, b) => eval(a) + eval(b),
         Node::Sub(a, b) => eval(a) - eval(b),
         Node::Mul(a, b) => eval(a) * eval(b),
         Node::Div(a, b) => eval(a) / eval(b),
         Node::Mod(a, b) => eval(a) % eval(b),
-        Node::Pow(a, b) => i32::pow(eval(a), eval(b) as u32),
+        Node::Pow(a, b) => i64::pow(eval(a), eval(b) as u32),
         Node::Neg(a) => -eval(a),
         Node::Num(a) => *a,
     }
 }
 
-fn parse(tokens: &[Token]) -> ParseResult {
+fn parse(input: &str) -> ParseResult {
+    let tokens = tokenize(input)?;
     let mut token_iter = tokens.iter().peekable();
     parse_exp(&mut token_iter)
 }
 
 fn parse_exp(tokens: &mut TokenIter) -> ParseResult {
-    // TODO: need to break parens out into their own step to allow unary to work properly -1234 + 1234 or -(1234) + 1234
-    let left = match tokens.peek() {
-        Some(Token::OpenParen) => {
-            tokens.next();
-            let exp = parse_exp(tokens)?;
-            match tokens.next() {
-                Some(Token::CloseParen) => (),
-                _ => return Err("Expected a closing paren.".to_string()),
-            }
-            exp
-        }
-        Some(_) => parse_unary(tokens)?,
-        None => None,
-    };
-    let left = match left {
+    let left = match parse_unary(tokens)? {
         Some(node) => node,
         None => return Ok(None),
     };
@@ -68,6 +57,10 @@ fn parse_exp(tokens: &mut TokenIter) -> ParseResult {
     let node = match op {
         Token::Plus => Box::new(Node::Add(left, right)),
         Token::Minus => Box::new(Node::Sub(left, right)),
+        Token::Asterisk => Box::new(Node::Mul(left, right)),
+        Token::BackSlash => Box::new(Node::Div(left, right)),
+        Token::Percent => Box::new(Node::Mod(left, right)),
+        Token::Caret => Box::new(Node::Pow(left, right)),
         _ => return Err(format!("Unexpected token: {:?}.", op)),
     };
     Ok(Some(node))
@@ -75,9 +68,18 @@ fn parse_exp(tokens: &mut TokenIter) -> ParseResult {
 
 fn parse_unary(tokens: &mut TokenIter) -> ParseResult {
     match tokens.peek() {
+        Some(Token::OpenParen) => {
+            tokens.next();
+            let exp = parse_exp(tokens);
+            match tokens.next() {
+                Some(Token::CloseParen) => (),
+                _ => return Err("Expected a closing paren.".to_string()),
+            }
+            exp
+        }
         Some(Token::Minus) => {
             tokens.next();
-            let right = match parse_exp(tokens)? {
+            let right = match parse_unary(tokens)? {
                 Some(node) => node,
                 None => return Err("Expected expression.".to_string()),
             };
@@ -103,8 +105,24 @@ fn main() {
     println!("nodes: {:?}", &node_3);
     println!("eval: {:?}", eval(&node_3));
 
-    // TODO: need to handle for spaces in the string.
-    let tokens = tokenize("-1234 + 1234").unwrap();
-    let node_4 = parse(&tokens).unwrap().unwrap();
-    println!("parsed eval: {:?}", eval(&node_4));
+    let node_4 = parse("-1234 + 1234").unwrap().unwrap();
+    println!("tree: {:?}, eval: {:?}", &node_4, eval(&node_4));
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parsing() {
+        assert_eq!(parse("1234"), Ok(Some(Box::new(Node::Num(1234)))));
+        assert_eq!(
+            parse("-1234"),
+            Ok(Some(Box::new(Node::Neg(Box::new(Node::Num(1234))))))
+        );
+    }
+
+    #[test]
+    fn test_eval() {
+    }
 }
