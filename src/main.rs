@@ -21,6 +21,11 @@ enum Node {
 type ParseResult = Result<Option<Box<Node>>, String>;
 type TokenIter<'a> = Peekable<std::slice::Iter<'a, Token>>;
 
+fn eval_str(input: &str) -> i64 {
+    let root_node = parse(input).unwrap().unwrap();
+    eval(&root_node)
+}
+
 // TODO: Update eval to return a result and handle things like divide by zero?
 fn eval(node: &Node) -> i64 {
     match node {
@@ -124,5 +129,8 @@ mod tests {
 
     #[test]
     fn test_eval() {
+        // TODO: Maybe add some kind of fuzzing here?
+        assert_eq!(eval_str("1 + 1"), 2);
+        assert_eq!(eval_str("1 - 1"), 0);
     }
 }
