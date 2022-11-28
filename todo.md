@@ -1,0 +1,24 @@
+# TODO
+
+- REPL.
+- show command to show all variables and functions?
+- debug command to show the AST?
+- support arrays and matricies?
+- support things like sum, prod?
+- support functions like map, flatten, filter, etc.
+- simple support for strings?
+- Binary literal.
+- Log functions.
+- Conversions.
+- Some functions and variables.
+- Shifts.
+- Masks.
+- Floating promotion.
+- Good error messages.
+- Trig functions.
+- Simple algebraic simplification?
+- Table of values?
+- Zeros?
+- Derive, etc?
+- Hex literals.
+- Similar to ixy?
