@@ -12,10 +12,37 @@ enum Node {
     Sub(Box<Node>, Box<Node>),
     Mul(Box<Node>, Box<Node>),
     Div(Box<Node>, Box<Node>),
-    Mod(Box<Node>, Box<Node>),
+    Modu(Box<Node>, Box<Node>),
     Pow(Box<Node>, Box<Node>),
     Neg(Box<Node>),
     Num(i64),
+}
+
+impl Node {
+    fn add(left: Box<Node>, right: Box<Node>) -> Box<Self> {
+        Box::new(Self::Add(left, right))
+    }
+    fn sub(left: Box<Node>, right: Box<Node>) -> Box<Self> {
+        Box::new(Self::Sub(left, right))
+    }
+    fn mul(left: Box<Node>, right: Box<Node>) -> Box<Self> {
+        Box::new(Self::Mul(left, right))
+    }
+    fn div(left: Box<Node>, right: Box<Node>) -> Box<Self> {
+        Box::new(Self::Div(left, right))
+    }
+    fn modu(left: Box<Node>, right: Box<Node>) -> Box<Self> {
+        Box::new(Self::Modu(left, right))
+    }
+    fn pow(left: Box<Node>, right: Box<Node>) -> Box<Self> {
+        Box::new(Self::Pow(left, right))
+    }
+    fn neg(value: Box<Node>) -> Box<Self> {
+        Box::new(Self::Neg(value))
+    }
+    fn num(value: i64) -> Box<Self> {
+        Box::new(Self::Num(value))
+    }
 }
 
 type ParseResult = Result<Option<Box<Node>>, String>;
@@ -33,7 +60,7 @@ fn eval(node: &Node) -> i64 {
         Node::Sub(a, b) => eval(a) - eval(b),
         Node::Mul(a, b) => eval(a) * eval(b),
         Node::Div(a, b) => eval(a) / eval(b),
-        Node::Mod(a, b) => eval(a) % eval(b),
+        Node::Modu(a, b) => eval(a) % eval(b),
         Node::Pow(a, b) => i64::pow(eval(a), eval(b) as u32),
         Node::Neg(a) => -eval(a),
         Node::Num(a) => *a,
@@ -61,8 +88,8 @@ fn parse_exp(tokens: &mut TokenIter) -> ParseResult {
             None => return Err("Right side of expression missing.".to_string()),
         };
         let node = match op {
-            Token::Plus => Box::new(Node::Add(left, right)),
-            Token::Minus => Box::new(Node::Sub(left, right)),
+            Token::Plus => Node::add(left, right),
+            Token::Minus => Node::sub(left, right),
             _ => return Err(format!("Unexpected token: {:?}.", op)),
         };
         left = node;
@@ -85,9 +112,9 @@ fn parse_exp_l1(tokens: &mut TokenIter) -> ParseResult {
             None => return Err("Right side of expression missing.".to_string()),
         };
         let node = match op {
-            Token::Asterisk => Box::new(Node::Mul(left, right)),
-            Token::BackSlash => Box::new(Node::Div(left, right)),
-            Token::Percent => Box::new(Node::Mod(left, right)),
+            Token::Asterisk => Node::mul(left, right),
+            Token::BackSlash => Node::div(left, right),
+            Token::Percent => Node::modu(left, right),
             _ => return Err(format!("Unexpected token: {:?}.", op)),
         };
         left = node;
@@ -110,7 +137,7 @@ fn parse_exp_l2(tokens: &mut TokenIter) -> ParseResult {
             None => return Err("Right side of expression missing.".to_string()),
         };
         let node = match op {
-            Token::Caret => Box::new(Node::Pow(left, right)),
+            Token::Caret => Node::pow(left, right),
             _ => return Err(format!("Unexpected token: {:?}.", op)),
         };
         left = node;
@@ -135,7 +162,7 @@ fn parse_unary(tokens: &mut TokenIter) -> ParseResult {
                 Some(node) => node,
                 None => return Err("Expected expression.".to_string()),
             };
-            Ok(Some(Box::new(Node::Neg(right))))
+            Ok(Some(Node::neg(right)))
         }
         None => Ok(None),
         _ => parse_number(tokens),
@@ -144,7 +171,7 @@ fn parse_unary(tokens: &mut TokenIter) -> ParseResult {
 
 fn parse_number(tokens: &mut TokenIter) -> ParseResult {
     match tokens.next() {
-        Some(Token::Num(a)) => Ok(Some(Box::new(Node::Num(*a)))),
+        Some(Token::Num(a)) => Ok(Some(Node::num(*a))),
         _ => Err("todo error.".to_string()),
     }
 }
@@ -160,20 +187,25 @@ mod tests {
 
     #[test]
     fn test_eval_nodes() {
-        let node_1 = Box::new(Node::Num(1));
-        let node_2 = Box::new(Node::Num(2));
-        let node_3 = Box::new(Node::Add(node_1, node_2));
+        let node_1 = Node::num(1);
+        let node_2 = Node::num(2);
+        let node_3 = Node::add(node_1, node_2);
 
         assert_eq!(eval(&node_3), 3);
     }
 
     #[test]
     fn test_parsing() {
-        assert_eq!(parse("1234"), Ok(Some(Box::new(Node::Num(1234)))));
-        assert_eq!(
-            parse("-1234"),
-            Ok(Some(Box::new(Node::Neg(Box::new(Node::Num(1234))))))
-        );
+        let expected = Node::num(1234);
+        assert_eq!(parse("1234"), Ok(Some(expected)));
+
+        let expected = Node::neg(Node::num(1234));
+        assert_eq!(parse("-1234"), Ok(Some(expected)));
+
+        let expected = Node::add(Node::num(1), Node::num(2));
+        assert_eq!(parse("1 + 2"), Ok(Some(expected)));
+
+        // TODO: add more test cases here and split out the eval part into a separate file.
     }
 
     // TODO: Maybe add some kind of fuzzing here?
